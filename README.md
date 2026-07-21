@@ -1,0 +1,77 @@
+# Shelf
+
+A Delicious Library–style macOS app for cataloging and valuing your physical
+music collection. Point your Mac camera (or an iPhone via Continuity Camera) at
+the barcode on a CD, cassette, or record and it appears on the shelf in seconds,
+looked up on Discogs and valued from live marketplace asking prices.
+
+![shelf](https://placeholder) <!-- screenshot -->
+
+## Features
+
+- **Barcode scanning** via any camera. Built-in FaceTime camera, external
+  webcams, and **iPhone Continuity Camera** are all auto-detected; the app
+  prefers a Continuity iPhone when present (best macro focus for small barcodes).
+- **Stack-scanning workflow.** Live preview with a targeting reticle, per-code
+  debouncing so one barcode fires once even while it sits in frame, automatic
+  add, a running activity feed, and a duplicate check that bumps quantity
+  instead of creating a second row. Just keep flipping through the crate.
+- **Discogs lookup & valuation.** Each scan searches the Discogs database by
+  barcode, pulls the full release metadata, and collects **every asking-price
+  data point available via the API** — per-condition price suggestions plus the
+  live marketplace floor. "Worth" is the average of all collected prices; every
+  individual price is stored and shown in the detail inspector.
+- **Live, searchable library.** A SwiftData store of every item with complete
+  metadata (artist, title, format, year, country, label, catalog #, genres,
+  styles, barcode, cover art, and the raw Discogs JSON). Instant search across
+  title/artist/label/genre/style, category filters, and sorting by recency,
+  value, artist, or title. A wall of cover art on a warm wooden shelf, with a
+  running total value in the toolbar.
+- **CSV export** of the whole library including all collected asking prices.
+- **Settings** to set your Discogs token, edit the (required, unique)
+  User-Agent, choose a valuation currency, export a CSV, or reset the database.
+
+## Requirements
+
+- macOS 14 or later.
+- Xcode 15+ / a recent Swift toolchain and [`xcodegen`](https://github.com/yonaskolb/XcodeGen)
+  (`brew install xcodegen`).
+
+## Build & run
+
+```sh
+./build.sh          # generate project + build
+./build.sh run      # build and launch
+```
+
+The generated `Shelf.xcodeproj` can also be opened in Xcode directly.
+
+## Discogs API notes
+
+- A **token is optional.** Barcode search, release metadata, and marketplace
+  stats work unauthenticated (25 requests/min). Add a personal access token in
+  Settings for a higher limit (60/min), search thumbnails, and per-condition
+  price suggestions.
+- Discogs' API policy **requires a unique User-Agent** per application. Shelf
+  seeds one with a per-install id; you can edit it in Settings.
+- **Why "average of asking prices" and not sold prices:** the public Discogs
+  API does not expose a release's full list of marketplace listings to a
+  non-seller, and there is no sold-price endpoint. Shelf uses the two legitimate
+  API sources of asking prices — `marketplace/price_suggestions` (per condition,
+  requires a seller-enabled token) and `marketplace/stats` (the live lowest
+  listing) — and averages whatever it can collect. All requests stay within the
+  documented API; nothing is scraped.
+
+## Layout
+
+```
+Sources/
+  ShelfApp.swift            App entry, ModelContainer, Settings scene
+  Models/MediaItem.swift    SwiftData model + media-category classifier
+  Settings/AppSettings.swift  UserDefaults-backed prefs (token, UA, currency)
+  Discogs/                  Decodable models + async rate-limited API client
+  Scanner/                  AVCaptureSession barcode scanner + preview layer
+  Import/ImportEngine.swift barcode → metadata → valuation → SwiftData
+  Export/CSVExporter.swift  RFC-4180 CSV
+  Views/                    Shelf grid, sidebar/scanner, detail, settings
+```
