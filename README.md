@@ -40,15 +40,9 @@ PNGs with the CoreGraphics script if you want to tweak it.
 ## Install (prebuilt)
 
 Grab `Mutiny-1.0.zip` from the [latest release](../../releases/latest), unzip,
-and drag **Mutiny.app** to your Applications folder.
-
-The build is ad-hoc signed but not notarized, so on first launch macOS
-Gatekeeper will complain. Either **right-click the app → Open** and confirm, or
-clear the quarantine flag from Terminal:
-
-```sh
-xattr -dr com.apple.quarantine /Applications/Mutiny.app
-```
+and drag **Mutiny.app** to your Applications folder. The build is signed with a
+Developer ID and notarized by Apple, so it opens with a normal double-click — no
+Gatekeeper workaround needed.
 
 ## Requirements
 
