@@ -57,7 +57,7 @@ final class AppSettings: ObservableObject {
         playSoundOnScan = defaults.object(forKey: Key.playSound) as? Bool ?? true
         autoAddSingleResult = defaults.object(forKey: Key.autoAddSingleResult) as? Bool ?? true
 
-        let defaultUA = "Shelf/1.0 +macos (scan-\(installID))"
+        let defaultUA = "Mutiny/1.0 +macos (scan-\(installID))"
         userAgent = defaults.string(forKey: Key.userAgent) ?? defaultUA
     }
 

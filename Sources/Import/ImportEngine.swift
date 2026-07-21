@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 import SwiftUI
+import AppKit
 
 /// Turns a raw barcode into a fully-populated, valued `MediaItem` and inserts
 /// (or updates) it in the SwiftData store. Runs on the main actor because it
@@ -59,6 +60,7 @@ final class ImportEngine: ObservableObject {
             save()
             status = .updated(title: existing.title)
             pushRecent("↑ \(existing.title) ×\(existing.quantity)")
+            playSound(.success)
             return
         }
 
@@ -81,11 +83,28 @@ final class ImportEngine: ObservableObject {
             save()
             status = .added(title: item.title)
             pushRecent("＋ \(item.title) — \(item.displayValue)")
+            playSound(.success)
         } catch {
             let message = (error as? DiscogsError)?.errorDescription ?? error.localizedDescription
             status = .failed(barcode: barcode, message: message)
             pushRecent("✕ \(barcode) — \(message)")
+            playSound(.failure)
         }
+    }
+
+    // MARK: - Feedback
+
+    private enum Feedback { case success, failure }
+
+    /// Plays a short system sound for a scan outcome, honoring the user's
+    /// "play a sound on each successful scan" preference. The failure chime is
+    /// gated on the same preference so scanning stays silent when disabled.
+    private func playSound(_ kind: Feedback) {
+        guard settings.playSoundOnScan else { return }
+        // Named system sounds live in /System/Library/Sounds. "Glass" is a
+        // crisp, satisfying confirmation; "Basso" reads clearly as an error.
+        let name = (kind == .success) ? "Glass" : "Basso"
+        NSSound(named: NSSound.Name(name))?.play()
     }
 
     // MARK: - Population
@@ -153,7 +172,7 @@ final class ImportEngine: ObservableObject {
     }
 
     private func save() {
-        do { try modelContext.save() } catch { print("Shelf save error: \(error)") }
+        do { try modelContext.save() } catch { print("Mutiny save error: \(error)") }
     }
 
     private func pushRecent(_ line: String) {

@@ -1,6 +1,6 @@
 import Foundation
 
-// Minimal, tolerant Decodable models covering only the fields Shelf needs.
+// Minimal, tolerant Decodable models covering only the fields Mutiny needs.
 // All optional so a missing/renamed field never fails the whole decode.
 
 struct DiscogsSearchResponse: Decodable {

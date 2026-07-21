@@ -45,7 +45,7 @@ struct SettingsView: View {
                         .font(.caption).foregroundStyle(.secondary)
                     Spacer()
                     Button("Reset default") {
-                        settings.userAgent = "Shelf/1.0 +macos (scan-\(settings.installID))"
+                        settings.userAgent = "Mutiny/1.0 +macos (scan-\(settings.installID))"
                     }.font(.caption)
                 }
             } header: { Text("User-Agent") }
@@ -121,7 +121,7 @@ struct SettingsView: View {
 
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.commaSeparatedText]
-        panel.nameFieldStringValue = "Shelf Library.csv"
+        panel.nameFieldStringValue = "Mutiny Library.csv"
         panel.canCreateDirectories = true
         panel.begin { response in
             guard response == .OK, let url = panel.url else { return }

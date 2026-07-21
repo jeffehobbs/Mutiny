@@ -41,8 +41,8 @@ final class BarcodeScanner: NSObject, ObservableObject, AVCaptureVideoDataOutput
 
     let session = AVCaptureSession()
     private let videoOutput = AVCaptureVideoDataOutput()
-    private let sessionQueue = DispatchQueue(label: "com.jeffhobbs.Shelf.session")
-    private let visionQueue = DispatchQueue(label: "com.jeffhobbs.Shelf.vision")
+    private let sessionQueue = DispatchQueue(label: "com.jeffhobbs.Mutiny.session")
+    private let visionQueue = DispatchQueue(label: "com.jeffhobbs.Mutiny.vision")
 
     private var recentReads: [String: Date] = [:]
     private let debounceInterval: TimeInterval = 2.5

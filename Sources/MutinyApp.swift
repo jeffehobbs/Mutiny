@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 
 @main
-struct ShelfApp: App {
+struct MutinyApp: App {
     let container: ModelContainer
     @StateObject private var settings = AppSettings.shared
 
@@ -10,7 +10,7 @@ struct ShelfApp: App {
         do {
             container = try ModelContainer(for: MediaItem.self)
         } catch {
-            fatalError("Failed to create the Shelf data store: \(error)")
+            fatalError("Failed to create the Mutiny data store: \(error)")
         }
     }
 

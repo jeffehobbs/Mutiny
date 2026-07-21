@@ -37,7 +37,7 @@ actor DiscogsRateLimiter {
     }
 }
 
-/// Async client for the parts of the Discogs API that Shelf uses.
+/// Async client for the parts of the Discogs API that Mutiny uses.
 final class DiscogsClient {
     private let settings: AppSettings
     private let limiter = DiscogsRateLimiter()
