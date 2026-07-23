@@ -71,6 +71,10 @@ final class MediaItem {
     var dateScanned: Date
     var notes: String
 
+    /// When true, this item's worth is kept out of the collection's running
+    /// total and by-condition valuation (e.g. items you're keeping, not selling).
+    var excludedFromSale: Bool = false
+
     init(barcode: String, discogsReleaseID: Int) {
         self.id = UUID()
         self.barcode = barcode
@@ -97,6 +101,7 @@ final class MediaItem {
         self.quantity = 1
         self.dateScanned = Date()
         self.notes = ""
+        self.excludedFromSale = false
     }
 
     var category: MediaCategory {

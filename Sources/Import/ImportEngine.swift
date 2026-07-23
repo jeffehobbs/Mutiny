@@ -48,6 +48,51 @@ final class ImportEngine: ObservableObject {
         handleScannedBarcode(barcode)
     }
 
+    /// Corrects a mis-scanned format (e.g. a CD that matched the vinyl pressing).
+    /// Re-searches the barcode, prefers the Discogs release whose format matches
+    /// `category`, and re-fetches its full metadata + valuation in place. If no
+    /// distinct release exists for that format, just applies the manual label.
+    func correctFormat(for item: MediaItem, to category: MediaCategory) {
+        let barcode = item.barcode
+        guard !barcode.isEmpty, !inFlight.contains(barcode) else { return }
+        inFlight.insert(barcode)
+        Task { await recategorize(item, to: category, barcode: barcode) }
+    }
+
+    private func recategorize(_ item: MediaItem, to category: MediaCategory, barcode: String) async {
+        defer { inFlight.remove(barcode) }
+        status = .working(barcode: barcode)
+        do {
+            let results = try await client.searchByBarcode(barcode)
+            let candidates = results.filter { $0.id != nil }
+            if let hit = candidates.first(where: { MediaCategory.classify(from: $0.format ?? []) == category }),
+               let releaseID = hit.id {
+                // A distinct release exists for the requested format — swap to it.
+                item.discogsReleaseID = releaseID
+                let (release, rawData) = try await client.fetchRelease(id: releaseID)
+                apply(release: release, rawData: rawData, fallback: hit, to: item)
+                item.categoryRaw = category.rawValue   // honor the explicit choice
+                await refreshValuation(for: item)
+                save()
+                status = .updated(title: item.title)
+                pushRecent("↺ \(item.title) → \(category.rawValue)")
+                playSound(.success, times: isTopTen(item) ? 3 : 1)
+            } else {
+                // No separate release for that format; relabel without refetch.
+                item.categoryRaw = category.rawValue
+                save()
+                status = .updated(title: item.title)
+                pushRecent("↺ \(item.title) format set to \(category.rawValue) (no separate Discogs release)")
+                playSound(.success)
+            }
+        } catch {
+            let message = (error as? DiscogsError)?.errorDescription ?? error.localizedDescription
+            status = .failed(barcode: barcode, message: message)
+            pushRecent("✕ \(barcode) — \(message)")
+            playSound(.failure)
+        }
+    }
+
     private func process(barcode: String) async {
         defer { inFlight.remove(barcode) }
         status = .working(barcode: barcode)
@@ -60,7 +105,7 @@ final class ImportEngine: ObservableObject {
             save()
             status = .updated(title: existing.title)
             pushRecent("↑ \(existing.title) ×\(existing.quantity)")
-            playSound(.success)
+            playSound(.success, times: isTopTen(existing) ? 3 : 1)
             return
         }
 
@@ -83,7 +128,7 @@ final class ImportEngine: ObservableObject {
             save()
             status = .added(title: item.title)
             pushRecent("＋ \(item.title) — \(item.displayValue)")
-            playSound(.success)
+            playSound(.success, times: isTopTen(item) ? 3 : 1)
         } catch {
             let message = (error as? DiscogsError)?.errorDescription ?? error.localizedDescription
             status = .failed(barcode: barcode, message: message)
@@ -99,12 +144,36 @@ final class ImportEngine: ObservableObject {
     /// Plays a short system sound for a scan outcome, honoring the user's
     /// "play a sound on each successful scan" preference. The failure chime is
     /// gated on the same preference so scanning stays silent when disabled.
-    private func playSound(_ kind: Feedback) {
+    /// `times` > 1 fires a quick celebratory run (used when a scan lands in the
+    /// collection's top-ten most valuable).
+    private func playSound(_ kind: Feedback, times: Int = 1) {
         guard settings.playSoundOnScan else { return }
         // Named system sounds live in /System/Library/Sounds. "Glass" is a
         // crisp, satisfying confirmation; "Basso" reads clearly as an error.
         let name = (kind == .success) ? "Glass" : "Basso"
+        playChime(name: name, remaining: max(1, times), interval: 0.28)
+    }
+
+    /// Fires `remaining` copies of a system sound spaced `interval` apart. Each
+    /// gets its own NSSound instance so replays don't cut the previous one off.
+    private func playChime(name: String, remaining: Int, interval: TimeInterval) {
         NSSound(named: NSSound.Name(name))?.play()
+        guard remaining > 1 else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + interval) { [weak self] in
+            self?.playChime(name: name, remaining: remaining - 1, interval: interval)
+        }
+    }
+
+    /// Whether `item` currently ranks among the ten most valuable titles in the
+    /// whole library (by unit estimated value) — mirrors the trophy list.
+    private func isTopTen(_ item: MediaItem) -> Bool {
+        guard let value = item.estimatedValue, value > 0 else { return false }
+        let all = (try? modelContext.fetch(FetchDescriptor<MediaItem>())) ?? []
+        let ranked = all
+            .filter { ($0.estimatedValue ?? 0) > 0 }
+            .sorted { ($0.estimatedValue ?? 0) > ($1.estimatedValue ?? 0) }
+            .prefix(10)
+        return ranked.contains { $0.id == item.id }
     }
 
     // MARK: - Population

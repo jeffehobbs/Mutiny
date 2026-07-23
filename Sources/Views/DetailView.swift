@@ -6,6 +6,7 @@ import AppKit
 /// selected item.
 struct DetailView: View {
     let item: MediaItem?
+    @ObservedObject var engine: ImportEngine
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var settings: AppSettings
 
@@ -25,9 +26,10 @@ struct DetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 RemoteImage(urlString: item.coverURL.isEmpty ? item.thumbURL : item.coverURL)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 220)
+                    .aspectRatio(1, contentMode: .fit)
+                    .frame(maxWidth: 260)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .frame(maxWidth: .infinity)   // center the capped square in the column
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(item.title).font(.title3.bold())
@@ -54,6 +56,12 @@ struct DetailView: View {
                  ? "No asking prices found on Discogs."
                  : "Average of \(item.askingPrices.count) asking price\(item.askingPrices.count == 1 ? "" : "s") · \(item.numberForSale) for sale")
                 .font(.caption).foregroundStyle(.secondary)
+            if item.excludedFromSale {
+                Label("Excluded from collection total", systemImage: "nosign")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.orange)
+                    .padding(.top, 2)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
@@ -63,7 +71,7 @@ struct DetailView: View {
     private func metadataCard(_ item: MediaItem) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             row("Format", item.formatDescription)
-            row("Category", item.category.rawValue)
+            formatCorrectionRow(item)
             row("Year", item.year == 0 ? "—" : String(item.year))
             row("Country", item.country.isEmpty ? "—" : item.country)
             row("Label", item.labels.isEmpty ? "—" : item.labels.joined(separator: ", "))
@@ -114,6 +122,15 @@ struct DetailView: View {
                     set: { item.quantity = max(1, $0); try? modelContext.save() }
                 ), in: 1...999)
             }
+            Button {
+                item.excludedFromSale.toggle()
+                try? modelContext.save()
+            } label: {
+                Label(item.excludedFromSale ? "Include in Sale" : "Exclude from Sale",
+                      systemImage: item.excludedFromSale ? "cart.badge.plus" : "cart.badge.minus")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
             Button(role: .destructive) {
                 modelContext.delete(item)
                 try? modelContext.save()
@@ -121,6 +138,41 @@ struct DetailView: View {
                 Label("Remove from Shelf", systemImage: "trash").frame(maxWidth: .infinity)
             }
             .buttonStyle(.bordered)
+        }
+    }
+
+    /// Interactive "Category" row: a picker that lets the user correct a
+    /// mis-scanned format (e.g. a CD that matched the vinyl pressing). Changing
+    /// it re-queries Discogs for the matching release and refreshes the item.
+    @ViewBuilder
+    private func formatCorrectionRow(_ item: MediaItem) -> some View {
+        let isUpdating: Bool = {
+            if case .working(let bc) = engine.status { return bc == item.barcode }
+            return false
+        }()
+        HStack(alignment: .firstTextBaseline) {
+            Text("Category").font(.caption).foregroundStyle(.secondary)
+                .frame(width: 78, alignment: .leading)
+            Picker("Category", selection: Binding(
+                get: { item.category },
+                set: { newCategory in
+                    guard newCategory != item.category else { return }
+                    engine.correctFormat(for: item, to: newCategory)
+                }
+            )) {
+                ForEach(MediaCategory.allCases) { cat in
+                    Label(cat.rawValue, systemImage: cat.symbol).tag(cat)
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.menu)
+            .controlSize(.small)
+            .fixedSize()
+            .disabled(isUpdating)
+            if isUpdating {
+                ProgressView().controlSize(.small)
+            }
+            Spacer(minLength: 0)
         }
     }
 

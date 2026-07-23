@@ -230,6 +230,7 @@ final class BarcodeScanner: NSObject, ObservableObject, AVCaptureVideoDataOutput
         DispatchQueue.main.async {
             self.lastBarcode = trimmed
             self.lastScanAt = now
+            NSSound(named: "Tink")?.play()   // little chirp when a fresh code is caught
             self.onBarcode?(trimmed)
         }
     }

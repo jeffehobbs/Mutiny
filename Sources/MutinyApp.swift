@@ -1,5 +1,7 @@
 import SwiftUI
 import SwiftData
+import AppKit
+import UniformTypeIdentifiers
 
 @main
 struct MutinyApp: App {
@@ -22,7 +24,10 @@ struct MutinyApp: App {
         }
         .modelContainer(container)
         .commands {
-            CommandGroup(replacing: .newItem) {} // no document "new"
+            CommandGroup(replacing: .newItem) {
+                Button("Generate Report…") { generateReport() }
+                    .keyboardShortcut("r", modifiers: [.command, .shift])
+            }
         }
 
         Settings {
@@ -30,6 +35,29 @@ struct MutinyApp: App {
                 .environmentObject(settings)
                 .modelContainer(container)
                 .frame(width: 520)
+        }
+    }
+
+    /// File ▸ Generate Report… — writes a buyer-facing PDF valuation report and
+    /// opens it. Values honor the "excluded from sale" flag.
+    private func generateReport() {
+        let items = (try? container.mainContext.fetch(FetchDescriptor<MediaItem>())) ?? []
+        guard let data = ReportGenerator.pdf(for: items, currency: settings.currency) else {
+            NSSound.beep(); return
+        }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [UTType.pdf]
+        panel.nameFieldStringValue = "Mutiny Collection Report.pdf"
+        panel.canCreateDirectories = true
+        panel.title = "Save Collection Report"
+        panel.begin { response in
+            guard response == .OK, let url = panel.url else { return }
+            do {
+                try data.write(to: url)
+                NSWorkspace.shared.open(url)
+            } catch {
+                NSSound.beep()
+            }
         }
     }
 }
