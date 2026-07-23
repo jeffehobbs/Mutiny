@@ -1,5 +1,7 @@
 # Mutiny
 
+<img width="1274" height="853" alt="Screenshot 2026-07-23 at 1 48 22 PM" src="https://github.com/user-attachments/assets/02f0bfa6-08cc-4874-9ed8-c34bf7cdace8" />
+
 A Delicious Library–style macOS app for cataloging and valuing your physical
 music collection. Point your Mac camera (or an iPhone via Continuity Camera) at
 the barcode on a CD, cassette, or record and it lands on the shelf in seconds,
